@@ -14,9 +14,13 @@ jobs:
       - name: Install Deps
         run: npm ci 
       - name: Check Formatting 
-        run: npm format-check
+        run: npm run format-check
       - name: Lint
-        run: npm lint
+        run: npm run lint
+      - name: Build
+        run: |
+          npm run build 
+          npm run package
 
 
   # test: # make sure the action works on a clean machine without building
