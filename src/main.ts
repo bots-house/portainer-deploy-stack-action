@@ -23,7 +23,7 @@ async function run(): Promise<void> {
     const stack = stacks.find(item => item.name == cfg.stack.name)
     core.endGroup()
 
-    if(stack) {
+    if (stack) {
       core.startGroup(`Update existing stack (id: ${stack.id})`)
 
       core.endGroup()
@@ -32,7 +32,6 @@ async function run(): Promise<void> {
     core.startGroup('Create new stack')
     core.info('do nothing')
     core.endGroup()
-
   } catch (error) {
     core.setFailed(error.message)
   }

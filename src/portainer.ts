@@ -131,8 +131,8 @@ export class PortainerClient {
     return response.data.map((item: any) => ({
       id: item.Id,
       name: item.Name,
-      resourceControl: item.ResourceControl.Id,
-    })) 
+      resourceControl: item.ResourceControl.Id
+    }))
   }
   async setResourceControl(
     input: InputResourceControl
