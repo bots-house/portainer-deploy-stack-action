@@ -108,18 +108,25 @@ function run() {
         try {
             const cfg = config.parse();
             core.debug(`parsed config: ${cfg}`);
+            core.startGroup('Auth');
             const portainer = new portainer_1.PortainerClient(cfg.portainer.url);
-            core.info('login...');
             yield portainer.login(cfg.portainer.username, cfg.portainer.password);
+            core.endGroup();
+            core.startGroup('Get State');
             core.info(`get current swarm id of endpoint #${cfg.portainer.endpoint}`);
             const swarm = yield portainer.getSwarm(cfg.portainer.endpoint);
             core.info(`get stacks of swarm cluster ${swarm.id}`);
             const stacks = yield portainer.getStacks(swarm.id);
             const stack = stacks.find(item => item.name == cfg.stack.name);
+            core.endGroup();
             if (stack) {
+                core.startGroup('Update existing stack');
                 core.info(`stack is already exists (id: ${stack.id}`);
+                core.endGroup();
             }
+            core.startGroup('Create new stack');
             core.info('do nothing');
+            core.endGroup();
         }
         catch (error) {
             core.setFailed(error.message);
