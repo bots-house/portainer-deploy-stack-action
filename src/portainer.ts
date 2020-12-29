@@ -165,7 +165,7 @@ export class PortainerClient {
       value: v
     }))
 
-    const response = await this.client.put(
+    await this.client.put(
       `/stacks/${patch.id}`,
       {
         StackFileContent: patch.stack,
@@ -178,14 +178,6 @@ export class PortainerClient {
         }
       }
     )
-
-    return {
-      id: response.data.Id,
-      name: response.data.Name,
-      resourceControl: {
-        id: response.data.ResourceControl.Id
-      }
-    }
   }
 
   async createStack(input: InputStack): Promise<Stack> {
