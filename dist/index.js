@@ -310,7 +310,7 @@ class PortainerClient {
                 name: k,
                 value: v
             }));
-            return yield this.client.put(`/stacks/${patch.id}`, {
+            const response = yield this.client.put(`/stacks/${patch.id}`, {
                 StackFileContent: patch.stack,
                 Env: env,
                 Prune: patch.prune
@@ -319,6 +319,13 @@ class PortainerClient {
                     endpointId: patch.endpointId
                 }
             });
+            return {
+                id: response.data.Id,
+                name: response.data.Name,
+                resourceControl: {
+                    id: response.data.ResourceControl.Id
+                }
+            };
         });
     }
     createStack(input) {
