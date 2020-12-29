@@ -7,18 +7,27 @@ on: # rebuild any PRs and main branch changes
       - 'releases/*'
 
 jobs:
-  build: # make sure build/ci work properly
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - run: |
-          npm install
-      - run: |
-          npm run all
+  # build: # make sure build/ci work properly
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - run: |
+  #         npm install
+  #     - run: |
+  #         npm run all
   test: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: ./
         with:
-          milliseconds: 1000
+          portainer-url: ${{ secrets.CLUSTER_PORTAINER_URL }}
+          portainer-username: ${{ secrets.CLUSTER_PORTAINER_USERNAME }}
+          portainer-password: ${{ secrets.CLUSTER_PORTAINER_PASSWORD }}
+          portainer-endpoint: 1
+          stack-name: whoami
+          stack-file: __tests__/data/stack.yml
+          stack-vars: |
+            DOMAIN: whoami.${{ secrets.CLUSTER_PORTAINER_DOMAIN }}
+          teams: Microservices, Bots House Family
+          

@@ -1,11 +1,49 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Portainer Deploy Stack'
+description: 'Deploy provided stack via Portainer'
 inputs:
-  milliseconds: # change this
+  portainer-username:
+    description: Poratainer user name
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+
+  portainer-password:
+    description: Portainer user password
+    required: true
+
+  portainer-url:
+    description: URL of Portainer instance
+    required: true
+
+  portainer-endpoint:
+    description: Swarm cluster ID in Portainer
+    required: true
+
+  stack-name: 
+    description: Docker Swarm stack name
+    required: true
+
+  stack-file:
+    description: Path of file with stack definition
+    required: true
+
+  stack-vars:
+    description: Stack variables to substitute.
+    required: false
+
+  stack-prune: 
+    description: Prune services there no longer referenced
+    required: false
+    default: 'false'
+    
+  teams:
+    description: |
+      Name of teams who can access this stack via Poratiner. 
+      Delimited by ","
+    required: false
+  
+outputs:
+  stack-id:
+    description: Created docker swarm stack ID
+
 runs:
   using: 'node12'
   main: 'dist/index.js'
