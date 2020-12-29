@@ -71,7 +71,8 @@ async function run(): Promise<void> {
 
     // if teams found
     if (teamIds.length > 0) {
-      core.info('update teams')
+      core.info('update teams...')
+
       const response = await portainer.setResourceControl({
         id: stack.resourceControl.id,
         teams: teamIds

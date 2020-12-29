@@ -1,6 +1,7 @@
 import {AxiosInstance, AxiosRequestConfig, AxiosResponse} from 'axios'
 import axios from 'axios'
 import {CustomError} from 'ts-custom-error'
+import * as core from '@actions/core'
 
 interface LoginResponse {
   jwt: string
@@ -76,6 +77,8 @@ export class PortainerClient {
   }
 
   private onRequestInterceptor = (config: AxiosRequestConfig) => {
+    core.info(JSON.stringify(config, null, 2))
+
     if (this.token) {
       config.headers['Authorization'] = `Bearer ${this.token}`
     }
