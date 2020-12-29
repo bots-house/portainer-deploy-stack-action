@@ -131,7 +131,6 @@ function run() {
                     prune: cfg.stack.updatePrune
                 });
                 core.endGroup();
-                return;
             }
             else {
                 core.startGroup('Create new stack');

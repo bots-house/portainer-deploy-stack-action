@@ -35,8 +35,6 @@ async function run(): Promise<void> {
       })
 
       core.endGroup()
-
-      return
     } else {
       core.startGroup('Create new stack')
 
