@@ -77,8 +77,6 @@ async function run(): Promise<void> {
         id: stack.resourceControl.id,
         teams: teamIds
       })
-
-      core.info(response)
     }
 
     core.endGroup()

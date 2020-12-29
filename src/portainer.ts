@@ -77,8 +77,6 @@ export class PortainerClient {
   }
 
   private onRequestInterceptor = (config: AxiosRequestConfig) => {
-    core.info(JSON.stringify(config, null, 2))
-
     if (this.token) {
       config.headers['Authorization'] = `Bearer ${this.token}`
     }
