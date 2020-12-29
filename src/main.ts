@@ -26,6 +26,14 @@ async function run(): Promise<void> {
     if (stack) {
       core.startGroup(`Update existing stack (id: ${stack.id})`)
 
+      await portainer.updateStack({
+        id: stack.id,
+        endpointId: cfg.portainer.endpoint,
+        stack: cfg.stack.file,
+        vars: cfg.stack.vars || {},
+        prune: cfg.stack.updatePrune
+      })
+
       core.endGroup()
     }
 

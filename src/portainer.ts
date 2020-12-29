@@ -27,6 +27,14 @@ export interface InputStack {
   vars: {[key: string]: string}
 }
 
+export interface PatchStack {
+  id: number
+  endpointId: number
+  stack: string
+  vars: {[key: string]: string}
+  prune: boolean
+}
+
 export interface InputResourceControl {
   id: number
   administratorsOnly?: boolean
@@ -148,6 +156,27 @@ export class PortainerClient {
     )
 
     return response.data
+  }
+
+  async updateStack(patch: PatchStack) {
+    const env = Object.entries(patch.vars).map(([k, v]) => ({
+      name: k,
+      value: v
+    }))
+
+    return await this.client.put(
+      `/stacks/${patch.id}`,
+      {
+        StackFileContent: patch.stack,
+        Env: env,
+        Prune: patch.prune
+      },
+      {
+        params: {
+          endpointId: patch.endpointId
+        }
+      }
+    )
   }
 
   async createStack(input: InputStack): Promise<Stack> {

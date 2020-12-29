@@ -44,10 +44,12 @@ function parseStackConfig() {
     const vars = yaml.safeLoad(core.getInput('stack-vars'));
     const filePath = core.getInput('stack-file', { required: true });
     const file = fs.readFileSync(filePath, 'utf-8');
+    const updatePrune = core.getInput('stack-update-prune') == 'true';
     return {
         name: core.getInput('stack-name'),
         file,
-        vars
+        vars,
+        updatePrune
     };
 }
 function parse() {
@@ -121,6 +123,13 @@ function run() {
             core.endGroup();
             if (stack) {
                 core.startGroup(`Update existing stack (id: ${stack.id})`);
+                yield portainer.updateStack({
+                    id: stack.id,
+                    endpointId: cfg.portainer.endpoint,
+                    stack: cfg.stack.file,
+                    vars: cfg.stack.vars || {},
+                    prune: cfg.stack.updatePrune
+                });
                 core.endGroup();
             }
             core.startGroup('Create new stack');
@@ -227,7 +236,7 @@ class PortainerClient {
             return response.data.map((item) => ({
                 id: item.Id,
                 name: item.Name,
-                resourceControl: item.ResourceControl.Id,
+                resourceControl: item.ResourceControl.Id
             }));
         });
     }
@@ -240,6 +249,23 @@ class PortainerClient {
                 Users: input.users || []
             });
             return response.data;
+        });
+    }
+    updateStack(patch) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const env = Object.entries(patch.vars).map(([k, v]) => ({
+                name: k,
+                value: v
+            }));
+            return yield this.client.put(`/stacks/${patch.id}`, {
+                StackFileContent: patch.stack,
+                Env: env,
+                Prune: patch.prune
+            }, {
+                params: {
+                    endpointId: patch.endpointId
+                }
+            });
         });
     }
     createStack(input) {
