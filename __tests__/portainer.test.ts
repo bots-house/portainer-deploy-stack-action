@@ -56,31 +56,4 @@ test('client create swarm', async () => {
 
   expect(stack.id).toBeGreaterThan(0)
   expect(stack.resourceControl.id).toBeGreaterThan(0)
-
-  // const teamsByName = (await client.getTeams()).reduce<{[key: string]: number}>(
-  //   (acc, val) => {
-  //     acc[val.name] = val.id
-  //     return acc
-  //   },
-  //   {}
-  // )
-
-  // const teams = ['Bots House Family']
-
-  // const teamIds = teams
-  //   .map(item => teamsByName[item])
-  //   .filter(id => id !== undefined)
-
-  // console.log(teamsByName)
-  // console.log(teams)
-  // console.log(teamIds)
-
-  // if (teamIds.length > 0) {
-  //   const response = await client.setResourceControl({
-  //     id: stack.resourceControl.id,
-  //     teams: teamIds
-  //   })
-
-  //   console.log(response)
-  // }
 })

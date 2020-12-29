@@ -29,5 +29,5 @@ jobs:
           stack-file: __tests__/data/stack.yml
           stack-vars: |
             DOMAIN: whoami.${{ secrets.CLUSTER_PORTAINER_DOMAIN }}
+          teams: Bots House Family, Microservices
           
-

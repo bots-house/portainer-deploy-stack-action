@@ -119,7 +119,7 @@ function run() {
             const swarm = yield portainer.getSwarm(cfg.portainer.endpoint);
             core.info(`get stacks of swarm cluster ${swarm.id}`);
             const stacks = yield portainer.getStacks(swarm.id);
-            const stack = stacks.find(item => item.name == cfg.stack.name);
+            let stack = stacks.find(item => item.name == cfg.stack.name);
             core.endGroup();
             if (stack) {
                 core.startGroup(`Update existing stack (id: ${stack.id})`);
@@ -131,9 +131,41 @@ function run() {
                     prune: cfg.stack.updatePrune
                 });
                 core.endGroup();
+                return;
             }
-            core.startGroup('Create new stack');
-            core.info('do nothing');
+            else {
+                core.startGroup('Create new stack');
+                stack = yield portainer.createStack({
+                    endpointId: cfg.portainer.endpoint,
+                    name: cfg.stack.name,
+                    stack: cfg.stack.file,
+                    vars: cfg.stack.vars || {}
+                });
+                core.endGroup();
+            }
+            core.startGroup('Set Permissions');
+            const teams = yield portainer.getTeams();
+            // create index of team name -> id
+            const teamsByName = teams.reduce((idx, val) => {
+                idx[val.name] = val.id;
+                return idx;
+            }, {});
+            // get team ids
+            const teamIds = (cfg.teams || []).map(team => {
+                const teamId = teamsByName[team];
+                if (!teamId) {
+                    throw new Error(`team ${team} not found`);
+                }
+                return teamId;
+            });
+            // if teams found
+            if (teamIds.length > 0) {
+                core.info('update teams');
+                const response = yield portainer.setResourceControl({
+                    id: stack.resourceControl.id,
+                    teams: teamIds
+                });
+            }
             core.endGroup();
         }
         catch (error) {

@@ -20,7 +20,7 @@ async function run(): Promise<void> {
     core.info(`get stacks of swarm cluster ${swarm.id}`)
     const stacks = await portainer.getStacks(swarm.id)
 
-    const stack = stacks.find(item => item.name == cfg.stack.name)
+    let stack = stacks.find(item => item.name == cfg.stack.name)
     core.endGroup()
 
     if (stack) {
@@ -35,10 +35,51 @@ async function run(): Promise<void> {
       })
 
       core.endGroup()
+
+      return
+    } else {
+      core.startGroup('Create new stack')
+
+      stack = await portainer.createStack({
+        endpointId: cfg.portainer.endpoint,
+        name: cfg.stack.name,
+        stack: cfg.stack.file,
+        vars: cfg.stack.vars || {}
+      })
+
+      core.endGroup()
     }
 
-    core.startGroup('Create new stack')
-    core.info('do nothing')
+    core.startGroup('Set Permissions')
+
+    const teams = await portainer.getTeams()
+
+    // create index of team name -> id
+    const teamsByName = teams.reduce<{[key: string]: number}>((idx, val) => {
+      idx[val.name] = val.id
+      return idx
+    }, {})
+
+    // get team ids
+    const teamIds = (cfg.teams || []).map(team => {
+      const teamId = teamsByName[team]
+
+      if (!teamId) {
+        throw new Error(`team ${team} not found`)
+      }
+
+      return teamId
+    })
+
+    // if teams found
+    if (teamIds.length > 0) {
+      core.info('update teams')
+      const response = await portainer.setResourceControl({
+        id: stack.resourceControl.id,
+        teams: teamIds
+      })
+    }
+
     core.endGroup()
   } catch (error) {
     core.setFailed(error.message)
