@@ -29,6 +29,11 @@ inputs:
     description: Stack variables to substitute.
     required: false
 
+  stack-prune: 
+    description: Prune services there no longer referenced
+    required: false
+    default: 'false'
+    
   teams:
     description: |
       Name of teams who can access this stack via Poratiner. 
@@ -36,7 +41,7 @@ inputs:
     required: false
   
 outputs:
-  stack_id:
+  stack-id:
     description: Created docker swarm stack ID
 
 runs:

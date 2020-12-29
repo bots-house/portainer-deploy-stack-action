@@ -142,6 +142,7 @@ function run() {
                 });
                 core.endGroup();
             }
+            core.setOutput('stack-id', stack.id);
             core.startGroup('Set Permissions');
             const teams = yield portainer.getTeams();
             // create index of team name -> id

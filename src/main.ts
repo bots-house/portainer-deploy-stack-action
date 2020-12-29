@@ -48,6 +48,8 @@ async function run(): Promise<void> {
       core.endGroup()
     }
 
+    core.setOutput('stack-id', stack.id)
+
     core.startGroup('Set Permissions')
 
     const teams = await portainer.getTeams()
