@@ -6,7 +6,8 @@ networks:
 
 services:
   server:
-    image: containous/whoami
+    # image: containous/whoami
+    image: kennethreitz/httpbin
     networks: [traefik_default]
     deploy:
       labels:

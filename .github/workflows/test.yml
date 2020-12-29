@@ -28,6 +28,6 @@ jobs:
           stack-name: whoami
           stack-file: __tests__/data/stack.yml
           stack-vars: |
-            DOMAIN: ${{ secrets.CLUSTER_PORTAINER_DOMAIN }}
+            DOMAIN: whoami.${{ secrets.CLUSTER_PORTAINER_DOMAIN }}
           
 
