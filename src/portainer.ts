@@ -142,18 +142,14 @@ export class PortainerClient {
       resourceControl: item.ResourceControl.Id
     }))
   }
-  async setResourceControl(
-    input: InputResourceControl
-  ): Promise<ResourceControl> {
-    const response = await this.client.put<InputResourceControl>(
-      `/resource_controls/${input.id}`,
-      {
-        AdministratorsOnly: input.administratorsOnly || false,
-        Public: input.public || false,
-        Teams: input.teams || [],
-        Users: input.users || []
-      }
-    )
+
+  async setResourceControl(input: InputResourceControl): Promise<any> {
+    const response = await this.client.put(`/resource_controls/${input.id}`, {
+      AdministratorsOnly: input.administratorsOnly || false,
+      Public: input.public || false,
+      Teams: input.teams || [],
+      Users: input.users || []
+    })
 
     return response.data
   }
