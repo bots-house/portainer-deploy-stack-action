@@ -26,7 +26,7 @@ jobs:
           portainer-password: ${{ secrets.CLUSTER_PORTAINER_PASSWORD }}
           portainer-endpoint: 1
           stack-name: whoami
-          stack-file: ../__tests__/data/stack.yml
+          stack-file: __tests__/data/stack.yml
           stack-vars: |
             DOMAIN: ${{ secrets.CLUSTER_PORTAINER_DOMAIN }}
           
