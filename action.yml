@@ -1,31 +1,31 @@
 name: 'Portainer Deploy Stack'
 description: 'Deploy provided stack via Portainer'
 inputs:
-  portainer_username:
+  portainer-username:
     description: Poratainer user name
     required: true
 
-  portainer_password:
+  portainer-password:
     description: Portainer user password
     required: true
 
-  portainer_url:
+  portainer-url:
     description: URL of Portainer instance
     required: true
 
-  portainer_endpoint:
+  portainer-endpoint:
     description: Swarm cluster ID in Portainer
     required: true
 
-  stack_name: 
+  stack-name: 
     description: Docker Swarm stack name
     required: true
 
-  stack_file:
+  stack-file:
     description: Path of file with stack definition
     required: true
 
-  stack_vars:
+  stack-vars:
     description: Stack variables to substitute.
     required: false
 
@@ -38,6 +38,7 @@ inputs:
 outputs:
   stack_id:
     description: Created docker swarm stack ID
+
 runs:
   using: 'node12'
   main: 'dist/index.js'

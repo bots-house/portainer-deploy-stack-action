@@ -24,22 +24,22 @@ export interface Config {
 
 function parsePortainerConfig(): PortainerConfig {
   return {
-    url: new URL(core.getInput('portainer_url', {required: true})),
-    username: core.getInput('portainer_username', {required: true}),
-    password: core.getInput('portainer_password', {required: true}),
-    endpoint: parseInt(core.getInput('portainer_endpoint', {required: true}))
+    url: new URL(core.getInput('portainer-url', {required: true})),
+    username: core.getInput('portainer-username', {required: true}),
+    password: core.getInput('portainer-password', {required: true}),
+    endpoint: parseInt(core.getInput('portainer-endpoint', {required: true}))
   }
 }
 
 function parseStackConfig(): StackConfig {
-  const vars = yaml.safeLoad(core.getInput('stack_vars')) as {
+  const vars = yaml.safeLoad(core.getInput('stack-vars')) as {
     [key: string]: string
   }
 
-  const filePath = core.getInput('stack_file', {required: true})
+  const filePath = core.getInput('stack-file', {required: true})
   const file = fs.readFileSync(filePath, 'utf-8')
   return {
-    name: core.getInput('stack_name'),
+    name: core.getInput('stack-name'),
     file,
     vars
   }

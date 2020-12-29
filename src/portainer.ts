@@ -177,6 +177,7 @@ export class PortainerClient {
 
     return {
       id: response.data.Id,
+      name: response.data.Name,
       resourceControl: {
         id: response.data.ResourceControl.Id
       }

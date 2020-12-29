@@ -19,15 +19,7 @@ async function run(): Promise<void> {
     core.info(`get stack of swarm cluster ${swarm.id}`)
     const stacks = await portainer.getStacks(swarm.id)
 
-    
-    // const ms: string = core.getInput('milliseconds')
-    // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
-
-    // core.debug(new Date().toTimeString())
-    // await wait(parseInt(ms, 10))
-    // core.debug(new Date().toTimeString())
-
-    // core.setOutput('time', new Date().toTimeString())
+    console.log()
   } catch (error) {
     core.setFailed(error.message)
   }
