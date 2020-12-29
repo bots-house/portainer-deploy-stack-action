@@ -24,8 +24,8 @@ async function run(): Promise<void> {
     core.endGroup()
 
     if(stack) {
-      core.startGroup('Update existing stack')
-      core.info(`stack is already exists (id: ${stack.id}`)
+      core.startGroup(`Update existing stack (id: ${stack.id})`)
+
       core.endGroup()
     }
 

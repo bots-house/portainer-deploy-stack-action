@@ -120,8 +120,7 @@ function run() {
             const stack = stacks.find(item => item.name == cfg.stack.name);
             core.endGroup();
             if (stack) {
-                core.startGroup('Update existing stack');
-                core.info(`stack is already exists (id: ${stack.id}`);
+                core.startGroup(`Update existing stack (id: ${stack.id})`);
                 core.endGroup();
             }
             core.startGroup('Create new stack');
