@@ -1,7 +1,5 @@
-import {AxiosInstance, AxiosRequestConfig, AxiosResponse} from 'axios'
-import axios from 'axios'
+import axios, {AxiosInstance, AxiosRequestConfig} from 'axios'
 import {CustomError} from 'ts-custom-error'
-import * as core from '@actions/core'
 
 interface LoginResponse {
   jwt: string
@@ -64,33 +62,36 @@ export class PortainerClient {
   private token?: string
 
   constructor(url: URL) {
+    if (url.pathname !== '/api/') {
+      url.pathname = '/api/'
+    }
+
     this.client = axios.create({
-      baseURL: url.toString() + 'api/'
+      baseURL: url.toString()
     })
 
-    this.client.interceptors.request.use(this.onRequestInterceptor)
+    this.client.interceptors.request.use(
+      (config: AxiosRequestConfig): AxiosRequestConfig => {
+        if (this.token) {
+          config.headers['Authorization'] = `Bearer ${this.token}`
+        }
+
+        return config
+      }
+    )
 
     this.client.interceptors.response.use(
       response => response,
-      this.onResponseErrorInterceptor
-    )
-  }
-
-  private onRequestInterceptor = (config: AxiosRequestConfig) => {
-    if (this.token) {
-      config.headers['Authorization'] = `Bearer ${this.token}`
-    }
-
-    return config
-  }
-
-  private onResponseErrorInterceptor = (error: any) => {
-    return Promise.reject(
-      new PortainerError(
-        error.response.status,
-        error.response.data.message,
-        error.response.data.details
-      )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async (error: any) => {
+        return Promise.reject(
+          new PortainerError(
+            error.response.status,
+            error.response.data.message,
+            error.response.data.details
+          )
+        )
+      }
     )
   }
 
@@ -108,7 +109,7 @@ export class PortainerClient {
     }
   }
 
-  async login(user: string, pass: string) {
+  async login(user: string, pass: string): Promise<void> {
     const response = await this.client.post<LoginResponse>('/auth', {
       username: user,
       password: pass
@@ -120,6 +121,7 @@ export class PortainerClient {
   async getTeams(): Promise<Team[]> {
     const response = await this.client.get('/teams')
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return response.data.map((item: any) => {
       return {
         id: item.Id,
@@ -137,6 +139,7 @@ export class PortainerClient {
       }
     })
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return response.data.map((item: any) => ({
       id: item.Id,
       name: item.Name,
@@ -146,6 +149,7 @@ export class PortainerClient {
     }))
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async setResourceControl(input: InputResourceControl): Promise<any> {
     const response = await this.client.put(`/resource_controls/${input.id}`, {
       AdministratorsOnly: input.administratorsOnly || false,
@@ -157,7 +161,7 @@ export class PortainerClient {
     return response.data
   }
 
-  async updateStack(patch: PatchStack) {
+  async updateStack(patch: PatchStack): Promise<void> {
     const env = Object.entries(patch.vars).map(([k, v]) => ({
       name: k,
       value: v
