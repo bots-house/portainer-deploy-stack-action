@@ -1,7 +1,6 @@
 import * as core from '@actions/core'
-import {wait} from './wait'
 import * as config from './config'
-import {PortainerClient, Stack} from './portainer'
+import {PortainerClient} from './portainer'
 
 async function run(): Promise<void> {
   try {
@@ -20,7 +19,7 @@ async function run(): Promise<void> {
     core.info(`get stacks of swarm cluster ${swarm.id}`)
     const stacks = await portainer.getStacks(swarm.id)
 
-    let stack = stacks.find(item => item.name == cfg.stack.name)
+    let stack = stacks.find(item => item.name === cfg.stack.name)
     core.endGroup()
 
     if (stack) {
@@ -74,11 +73,6 @@ async function run(): Promise<void> {
     // if teams found
     if (teamIds.length > 0) {
       core.info('update teams...')
-
-      const response = await portainer.setResourceControl({
-        id: stack.resourceControl.id,
-        teams: teamIds
-      })
     }
 
     core.endGroup()

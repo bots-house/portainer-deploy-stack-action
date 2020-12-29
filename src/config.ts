@@ -39,7 +39,7 @@ function parseStackConfig(): StackConfig {
 
   const filePath = core.getInput('stack-file', {required: true})
   const file = fs.readFileSync(filePath, 'utf-8')
-  const updatePrune = core.getInput('stack-update-prune') == 'true'
+  const updatePrune = core.getInput('stack-update-prune') === 'true'
 
   return {
     name: core.getInput('stack-name'),

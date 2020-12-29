@@ -1,0 +1,25 @@
+name: CI
+
+on: # rebuild any PRs and main branch changes
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'releases/*'
+
+jobs:
+  test-lint-build:
+    name: Test, Lint, Build
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Deps
+        run: npm ci 
+      - name: Check Formatting 
+        run: npm run format-check
+      - name: Lint
+        run: npm run lint
+      - name: Try to build
+        run: |
+          npm run build 
+          npm run package

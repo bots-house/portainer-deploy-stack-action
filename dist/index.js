@@ -44,7 +44,7 @@ function parseStackConfig() {
     const vars = yaml.safeLoad(core.getInput('stack-vars'));
     const filePath = core.getInput('stack-file', { required: true });
     const file = fs.readFileSync(filePath, 'utf-8');
-    const updatePrune = core.getInput('stack-update-prune') == 'true';
+    const updatePrune = core.getInput('stack-update-prune') === 'true';
     return {
         name: core.getInput('stack-name'),
         file,
@@ -119,7 +119,7 @@ function run() {
             const swarm = yield portainer.getSwarm(cfg.portainer.endpoint);
             core.info(`get stacks of swarm cluster ${swarm.id}`);
             const stacks = yield portainer.getStacks(swarm.id);
-            let stack = stacks.find(item => item.name == cfg.stack.name);
+            let stack = stacks.find(item => item.name === cfg.stack.name);
             core.endGroup();
             if (stack) {
                 core.startGroup(`Update existing stack (id: ${stack.id})`);
@@ -161,10 +161,6 @@ function run() {
             // if teams found
             if (teamIds.length > 0) {
                 core.info('update teams...');
-                const response = yield portainer.setResourceControl({
-                    id: stack.resourceControl.id,
-                    teams: teamIds
-                });
             }
             core.endGroup();
         }
@@ -210,20 +206,23 @@ class PortainerError extends ts_custom_error_1.CustomError {
 exports.PortainerError = PortainerError;
 class PortainerClient {
     constructor(url) {
-        this.onRequestInterceptor = (config) => {
+        if (url.pathname !== '/api/') {
+            url.pathname = '/api/';
+        }
+        this.client = axios_1.default.create({
+            baseURL: url.toString()
+        });
+        this.client.interceptors.request.use((config) => {
             if (this.token) {
                 config.headers['Authorization'] = `Bearer ${this.token}`;
             }
             return config;
-        };
-        this.onResponseErrorInterceptor = (error) => {
-            return Promise.reject(new PortainerError(error.response.status, error.response.data.message, error.response.data.details));
-        };
-        this.client = axios_1.default.create({
-            baseURL: url.toString() + 'api/'
         });
-        this.client.interceptors.request.use(this.onRequestInterceptor);
-        this.client.interceptors.response.use(response => response, this.onResponseErrorInterceptor);
+        this.client.interceptors.response.use(response => response, 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (error) => __awaiter(this, void 0, void 0, function* () {
+            return Promise.reject(new PortainerError(error.response.status, error.response.data.message, error.response.data.details));
+        }));
     }
     get isAuthorized() {
         return Boolean(this.token);
@@ -248,6 +247,7 @@ class PortainerClient {
     getTeams() {
         return __awaiter(this, void 0, void 0, function* () {
             const response = yield this.client.get('/teams');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return response.data.map((item) => {
                 return {
                     id: item.Id,
@@ -265,6 +265,7 @@ class PortainerClient {
                     })
                 }
             });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return response.data.map((item) => ({
                 id: item.Id,
                 name: item.Name,
@@ -274,6 +275,7 @@ class PortainerClient {
             }));
         });
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setResourceControl(input) {
         return __awaiter(this, void 0, void 0, function* () {
             const response = yield this.client.put(`/resource_controls/${input.id}`, {
@@ -2800,12 +2802,21 @@ module.exports = {
  * This is the web browser implementation of `debug()`.
  */
 
-exports.log = log;
 exports.formatArgs = formatArgs;
 exports.save = save;
 exports.load = load;
 exports.useColors = useColors;
 exports.storage = localstorage();
+exports.destroy = (() => {
+	let warned = false;
+
+	return () => {
+		if (!warned) {
+			warned = true;
+			console.warn('Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.');
+		}
+	};
+})();
 
 /**
  * Colors.
@@ -2966,18 +2977,14 @@ function formatArgs(args) {
 }
 
 /**
- * Invokes `console.log()` when available.
- * No-op when `console.log` is not a "function".
+ * Invokes `console.debug()` when available.
+ * No-op when `console.debug` is not a "function".
+ * If `console.debug` is not available, falls back
+ * to `console.log`.
  *
  * @api public
  */
-function log(...args) {
-	// This hackery is required for IE8/9, where
-	// the `console.log` function doesn't have 'apply'
-	return typeof console === 'object' &&
-		console.log &&
-		console.log(...args);
-}
+exports.log = console.debug || console.log || (() => {});
 
 /**
  * Save `namespaces`.
@@ -3079,15 +3086,11 @@ function setup(env) {
 	createDebug.enable = enable;
 	createDebug.enabled = enabled;
 	createDebug.humanize = __webpack_require__(900);
+	createDebug.destroy = destroy;
 
 	Object.keys(env).forEach(key => {
 		createDebug[key] = env[key];
 	});
-
-	/**
-	* Active `debug` instances.
-	*/
-	createDebug.instances = [];
 
 	/**
 	* The currently active debug mode names, and names to skip.
@@ -3130,6 +3133,7 @@ function setup(env) {
 	*/
 	function createDebug(namespace) {
 		let prevTime;
+		let enableOverride = null;
 
 		function debug(...args) {
 			// Disabled?
@@ -3159,7 +3163,7 @@ function setup(env) {
 			args[0] = args[0].replace(/%([a-zA-Z%])/g, (match, format) => {
 				// If we encounter an escaped % then don't increase the array index
 				if (match === '%%') {
-					return match;
+					return '%';
 				}
 				index++;
 				const formatter = createDebug.formatters[format];
@@ -3182,31 +3186,26 @@ function setup(env) {
 		}
 
 		debug.namespace = namespace;
-		debug.enabled = createDebug.enabled(namespace);
 		debug.useColors = createDebug.useColors();
-		debug.color = selectColor(namespace);
-		debug.destroy = destroy;
+		debug.color = createDebug.selectColor(namespace);
 		debug.extend = extend;
-		// Debug.formatArgs = formatArgs;
-		// debug.rawLog = rawLog;
+		debug.destroy = createDebug.destroy; // XXX Temporary. Will be removed in the next major release.
 
-		// env-specific initialization logic for debug instances
+		Object.defineProperty(debug, 'enabled', {
+			enumerable: true,
+			configurable: false,
+			get: () => enableOverride === null ? createDebug.enabled(namespace) : enableOverride,
+			set: v => {
+				enableOverride = v;
+			}
+		});
+
+		// Env-specific initialization logic for debug instances
 		if (typeof createDebug.init === 'function') {
 			createDebug.init(debug);
 		}
 
-		createDebug.instances.push(debug);
-
 		return debug;
-	}
-
-	function destroy() {
-		const index = createDebug.instances.indexOf(this);
-		if (index !== -1) {
-			createDebug.instances.splice(index, 1);
-			return true;
-		}
-		return false;
 	}
 
 	function extend(namespace, delimiter) {
@@ -3245,11 +3244,6 @@ function setup(env) {
 			} else {
 				createDebug.names.push(new RegExp('^' + namespaces + '$'));
 			}
-		}
-
-		for (i = 0; i < createDebug.instances.length; i++) {
-			const instance = createDebug.instances[i];
-			instance.enabled = createDebug.enabled(instance.namespace);
 		}
 	}
 
@@ -3325,6 +3319,14 @@ function setup(env) {
 		return val;
 	}
 
+	/**
+	* XXX DO NOT USE. This is a temporary stub function.
+	* XXX It WILL be removed in the next major release.
+	*/
+	function destroy() {
+		console.warn('Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.');
+	}
+
 	createDebug.enable(createDebug.load());
 
 	return createDebug;
@@ -3372,6 +3374,10 @@ exports.formatArgs = formatArgs;
 exports.save = save;
 exports.load = load;
 exports.useColors = useColors;
+exports.destroy = util.deprecate(
+	() => {},
+	'Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.'
+);
 
 /**
  * Colors.
@@ -3601,7 +3607,9 @@ const {formatters} = module.exports;
 formatters.o = function (v) {
 	this.inspectOpts.colors = this.useColors;
 	return util.inspect(v, this.inspectOpts)
-		.replace(/\s*\n\s*/g, ' ');
+		.split('\n')
+		.map(str => str.trim())
+		.join(' ');
 };
 
 /**
@@ -4148,12 +4156,12 @@ module.exports.wrap = wrap;
 
 "use strict";
 
-module.exports = (flag, argv) => {
-	argv = argv || process.argv;
+
+module.exports = (flag, argv = process.argv) => {
 	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
-	const pos = argv.indexOf(prefix + flag);
-	const terminatorPos = argv.indexOf('--');
-	return pos !== -1 && (terminatorPos === -1 ? true : pos < terminatorPos);
+	const position = argv.indexOf(prefix + flag);
+	const terminatorPosition = argv.indexOf('--');
+	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
 };
 
 
@@ -8501,23 +8509,32 @@ function plural(ms, msAbs, n, name) {
 "use strict";
 
 const os = __webpack_require__(2087);
+const tty = __webpack_require__(3867);
 const hasFlag = __webpack_require__(1621);
 
-const env = process.env;
+const {env} = process;
 
 let forceColor;
 if (hasFlag('no-color') ||
 	hasFlag('no-colors') ||
-	hasFlag('color=false')) {
-	forceColor = false;
+	hasFlag('color=false') ||
+	hasFlag('color=never')) {
+	forceColor = 0;
 } else if (hasFlag('color') ||
 	hasFlag('colors') ||
 	hasFlag('color=true') ||
 	hasFlag('color=always')) {
-	forceColor = true;
+	forceColor = 1;
 }
+
 if ('FORCE_COLOR' in env) {
-	forceColor = env.FORCE_COLOR.length === 0 || parseInt(env.FORCE_COLOR, 10) !== 0;
+	if (env.FORCE_COLOR === 'true') {
+		forceColor = 1;
+	} else if (env.FORCE_COLOR === 'false') {
+		forceColor = 0;
+	} else {
+		forceColor = env.FORCE_COLOR.length === 0 ? 1 : Math.min(parseInt(env.FORCE_COLOR, 10), 3);
+	}
 }
 
 function translateLevel(level) {
@@ -8533,8 +8550,8 @@ function translateLevel(level) {
 	};
 }
 
-function supportsColor(stream) {
-	if (forceColor === false) {
+function supportsColor(haveStream, streamIsTTY) {
+	if (forceColor === 0) {
 		return 0;
 	}
 
@@ -8548,22 +8565,21 @@ function supportsColor(stream) {
 		return 2;
 	}
 
-	if (stream && !stream.isTTY && forceColor !== true) {
+	if (haveStream && !streamIsTTY && forceColor === undefined) {
 		return 0;
 	}
 
-	const min = forceColor ? 1 : 0;
+	const min = forceColor || 0;
+
+	if (env.TERM === 'dumb') {
+		return min;
+	}
 
 	if (process.platform === 'win32') {
-		// Node.js 7.5.0 is the first version of Node.js to include a patch to
-		// libuv that enables 256 color output on Windows. Anything earlier and it
-		// won't work. However, here we target Node.js 8 at minimum as it is an LTS
-		// release, and Node.js 7 is not. Windows 10 build 10586 is the first Windows
-		// release that supports 256 colors. Windows 10 build 14931 is the first release
-		// that supports 16m/TrueColor.
+		// Windows 10 build 10586 is the first Windows release that supports 256 colors.
+		// Windows 10 build 14931 is the first release that supports 16m/TrueColor.
 		const osRelease = os.release().split('.');
 		if (
-			Number(process.versions.node.split('.')[0]) >= 8 &&
 			Number(osRelease[0]) >= 10 &&
 			Number(osRelease[2]) >= 10586
 		) {
@@ -8574,7 +8590,7 @@ function supportsColor(stream) {
 	}
 
 	if ('CI' in env) {
-		if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI'].some(sign => sign in env) || env.CI_NAME === 'codeship') {
+		if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI', 'GITHUB_ACTIONS', 'BUILDKITE'].some(sign => sign in env) || env.CI_NAME === 'codeship') {
 			return 1;
 		}
 
@@ -8613,22 +8629,18 @@ function supportsColor(stream) {
 		return 1;
 	}
 
-	if (env.TERM === 'dumb') {
-		return min;
-	}
-
 	return min;
 }
 
 function getSupportLevel(stream) {
-	const level = supportsColor(stream);
+	const level = supportsColor(stream, stream && stream.isTTY);
 	return translateLevel(level);
 }
 
 module.exports = {
 	supportsColor: getSupportLevel,
-	stdout: getSupportLevel(process.stdout),
-	stderr: getSupportLevel(process.stderr)
+	stdout: translateLevel(supportsColor(true, tty.isatty(1))),
+	stderr: translateLevel(supportsColor(true, tty.isatty(2)))
 };
 
 
@@ -8753,7 +8765,7 @@ exports.customErrorFactory = customErrorFactory;
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse("{\"_from\":\"axios\",\"_id\":\"axios@0.21.1\",\"_inBundle\":false,\"_integrity\":\"sha512-dKQiRHxGD9PPRIUNIWvZhPTPpl1rf/OxTYKsqKUDjBwYylTvV7SjSHJb9ratfyzM6wCdLCOYLzs73qpg5c4iGA==\",\"_location\":\"/axios\",\"_phantomChildren\":{},\"_requested\":{\"type\":\"tag\",\"registry\":true,\"raw\":\"axios\",\"name\":\"axios\",\"escapedName\":\"axios\",\"rawSpec\":\"\",\"saveSpec\":null,\"fetchSpec\":\"latest\"},\"_requiredBy\":[\"#USER\",\"/\"],\"_resolved\":\"https://registry.npmjs.org/axios/-/axios-0.21.1.tgz\",\"_shasum\":\"22563481962f4d6bde9a76d516ef0e5d3c09b2b8\",\"_spec\":\"axios\",\"_where\":\"/Users/sasha/Dev/portainer-deploy-stack-action\",\"author\":{\"name\":\"Matt Zabriskie\"},\"browser\":{\"./lib/adapters/http.js\":\"./lib/adapters/xhr.js\"},\"bugs\":{\"url\":\"https://github.com/axios/axios/issues\"},\"bundleDependencies\":false,\"bundlesize\":[{\"path\":\"./dist/axios.min.js\",\"threshold\":\"5kB\"}],\"dependencies\":{\"follow-redirects\":\"^1.10.0\"},\"deprecated\":false,\"description\":\"Promise based HTTP client for the browser and node.js\",\"devDependencies\":{\"bundlesize\":\"^0.17.0\",\"coveralls\":\"^3.0.0\",\"es6-promise\":\"^4.2.4\",\"grunt\":\"^1.0.2\",\"grunt-banner\":\"^0.6.0\",\"grunt-cli\":\"^1.2.0\",\"grunt-contrib-clean\":\"^1.1.0\",\"grunt-contrib-watch\":\"^1.0.0\",\"grunt-eslint\":\"^20.1.0\",\"grunt-karma\":\"^2.0.0\",\"grunt-mocha-test\":\"^0.13.3\",\"grunt-ts\":\"^6.0.0-beta.19\",\"grunt-webpack\":\"^1.0.18\",\"istanbul-instrumenter-loader\":\"^1.0.0\",\"jasmine-core\":\"^2.4.1\",\"karma\":\"^1.3.0\",\"karma-chrome-launcher\":\"^2.2.0\",\"karma-coverage\":\"^1.1.1\",\"karma-firefox-launcher\":\"^1.1.0\",\"karma-jasmine\":\"^1.1.1\",\"karma-jasmine-ajax\":\"^0.1.13\",\"karma-opera-launcher\":\"^1.0.0\",\"karma-safari-launcher\":\"^1.0.0\",\"karma-sauce-launcher\":\"^1.2.0\",\"karma-sinon\":\"^1.0.5\",\"karma-sourcemap-loader\":\"^0.3.7\",\"karma-webpack\":\"^1.7.0\",\"load-grunt-tasks\":\"^3.5.2\",\"minimist\":\"^1.2.0\",\"mocha\":\"^5.2.0\",\"sinon\":\"^4.5.0\",\"typescript\":\"^2.8.1\",\"url-search-params\":\"^0.10.0\",\"webpack\":\"^1.13.1\",\"webpack-dev-server\":\"^1.14.1\"},\"homepage\":\"https://github.com/axios/axios\",\"jsdelivr\":\"dist/axios.min.js\",\"keywords\":[\"xhr\",\"http\",\"ajax\",\"promise\",\"node\"],\"license\":\"MIT\",\"main\":\"index.js\",\"name\":\"axios\",\"repository\":{\"type\":\"git\",\"url\":\"git+https://github.com/axios/axios.git\"},\"scripts\":{\"build\":\"NODE_ENV=production grunt build\",\"coveralls\":\"cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js\",\"examples\":\"node ./examples/server.js\",\"fix\":\"eslint --fix lib/**/*.js\",\"postversion\":\"git push && git push --tags\",\"preversion\":\"npm test\",\"start\":\"node ./sandbox/server.js\",\"test\":\"grunt test && bundlesize\",\"version\":\"npm run build && grunt version && git add -A dist && git add CHANGELOG.md bower.json package.json\"},\"typings\":\"./index.d.ts\",\"unpkg\":\"dist/axios.min.js\",\"version\":\"0.21.1\"}");
+module.exports = JSON.parse("{\"_from\":\"axios@^0.21.1\",\"_id\":\"axios@0.21.1\",\"_inBundle\":false,\"_integrity\":\"sha512-dKQiRHxGD9PPRIUNIWvZhPTPpl1rf/OxTYKsqKUDjBwYylTvV7SjSHJb9ratfyzM6wCdLCOYLzs73qpg5c4iGA==\",\"_location\":\"/axios\",\"_phantomChildren\":{},\"_requested\":{\"type\":\"range\",\"registry\":true,\"raw\":\"axios@^0.21.1\",\"name\":\"axios\",\"escapedName\":\"axios\",\"rawSpec\":\"^0.21.1\",\"saveSpec\":null,\"fetchSpec\":\"^0.21.1\"},\"_requiredBy\":[\"/\"],\"_resolved\":\"https://registry.npmjs.org/axios/-/axios-0.21.1.tgz\",\"_shasum\":\"22563481962f4d6bde9a76d516ef0e5d3c09b2b8\",\"_spec\":\"axios@^0.21.1\",\"_where\":\"/Users/sasha/Dev/portainer-deploy-stack-action\",\"author\":{\"name\":\"Matt Zabriskie\"},\"browser\":{\"./lib/adapters/http.js\":\"./lib/adapters/xhr.js\"},\"bugs\":{\"url\":\"https://github.com/axios/axios/issues\"},\"bundleDependencies\":false,\"bundlesize\":[{\"path\":\"./dist/axios.min.js\",\"threshold\":\"5kB\"}],\"dependencies\":{\"follow-redirects\":\"^1.10.0\"},\"deprecated\":false,\"description\":\"Promise based HTTP client for the browser and node.js\",\"devDependencies\":{\"bundlesize\":\"^0.17.0\",\"coveralls\":\"^3.0.0\",\"es6-promise\":\"^4.2.4\",\"grunt\":\"^1.0.2\",\"grunt-banner\":\"^0.6.0\",\"grunt-cli\":\"^1.2.0\",\"grunt-contrib-clean\":\"^1.1.0\",\"grunt-contrib-watch\":\"^1.0.0\",\"grunt-eslint\":\"^20.1.0\",\"grunt-karma\":\"^2.0.0\",\"grunt-mocha-test\":\"^0.13.3\",\"grunt-ts\":\"^6.0.0-beta.19\",\"grunt-webpack\":\"^1.0.18\",\"istanbul-instrumenter-loader\":\"^1.0.0\",\"jasmine-core\":\"^2.4.1\",\"karma\":\"^1.3.0\",\"karma-chrome-launcher\":\"^2.2.0\",\"karma-coverage\":\"^1.1.1\",\"karma-firefox-launcher\":\"^1.1.0\",\"karma-jasmine\":\"^1.1.1\",\"karma-jasmine-ajax\":\"^0.1.13\",\"karma-opera-launcher\":\"^1.0.0\",\"karma-safari-launcher\":\"^1.0.0\",\"karma-sauce-launcher\":\"^1.2.0\",\"karma-sinon\":\"^1.0.5\",\"karma-sourcemap-loader\":\"^0.3.7\",\"karma-webpack\":\"^1.7.0\",\"load-grunt-tasks\":\"^3.5.2\",\"minimist\":\"^1.2.0\",\"mocha\":\"^5.2.0\",\"sinon\":\"^4.5.0\",\"typescript\":\"^2.8.1\",\"url-search-params\":\"^0.10.0\",\"webpack\":\"^1.13.1\",\"webpack-dev-server\":\"^1.14.1\"},\"homepage\":\"https://github.com/axios/axios\",\"jsdelivr\":\"dist/axios.min.js\",\"keywords\":[\"xhr\",\"http\",\"ajax\",\"promise\",\"node\"],\"license\":\"MIT\",\"main\":\"index.js\",\"name\":\"axios\",\"repository\":{\"type\":\"git\",\"url\":\"git+https://github.com/axios/axios.git\"},\"scripts\":{\"build\":\"NODE_ENV=production grunt build\",\"coveralls\":\"cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js\",\"examples\":\"node ./examples/server.js\",\"fix\":\"eslint --fix lib/**/*.js\",\"postversion\":\"git push && git push --tags\",\"preversion\":\"npm test\",\"start\":\"node ./sandbox/server.js\",\"test\":\"grunt test && bundlesize\",\"version\":\"npm run build && grunt version && git add -A dist && git add CHANGELOG.md bower.json package.json\"},\"typings\":\"./index.d.ts\",\"unpkg\":\"dist/axios.min.js\",\"version\":\"0.21.1\"}");
 
 /***/ }),
 
