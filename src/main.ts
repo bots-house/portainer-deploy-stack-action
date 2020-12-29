@@ -24,7 +24,9 @@ async function run(): Promise<void> {
     if(stack) {
       core.info(`stack is already exists (id: ${stack.id}`)
     }
-    
+
+    core.info('do nothing')
+
   } catch (error) {
     core.setFailed(error.message)
   }

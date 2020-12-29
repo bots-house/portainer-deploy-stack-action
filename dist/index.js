@@ -113,9 +113,13 @@ function run() {
             yield portainer.login(cfg.portainer.username, cfg.portainer.password);
             core.info(`get current swarm id of endpoint #${cfg.portainer.endpoint}`);
             const swarm = yield portainer.getSwarm(cfg.portainer.endpoint);
-            core.info(`get stack of swarm cluster ${swarm.id}`);
+            core.info(`get stacks of swarm cluster ${swarm.id}`);
             const stacks = yield portainer.getStacks(swarm.id);
-            console.log();
+            const stack = stacks.find(item => item.name == cfg.stack.name);
+            if (stack) {
+                core.info(`stack is already exists (id: ${stack.id}`);
+            }
+            core.info('do nothing');
         }
         catch (error) {
             core.setFailed(error.message);
