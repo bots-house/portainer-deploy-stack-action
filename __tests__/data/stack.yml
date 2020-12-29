@@ -20,6 +20,6 @@ services:
         - traefik.http.routers.whoami-https.entrypoints=https
         - traefik.http.routers.whoami-https.tls=true
         - traefik.http.routers.whoami-https.tls.certresolver=le
-        - traefik.http.routers.whoami-https.middlewares=ops-auth
+        # - traefik.http.routers.whoami-https.middlewares=ops-auth
         - traefik.http.services.whoami.loadbalancer.server.port=80
 
