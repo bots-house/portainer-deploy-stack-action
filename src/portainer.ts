@@ -142,7 +142,9 @@ export class PortainerClient {
     return response.data.map((item: any) => ({
       id: item.Id,
       name: item.Name,
-      resourceControl: item.ResourceControl.Id
+      resourceControl: {
+        id: item.ResourceControl.Id
+      }
     }))
   }
 
