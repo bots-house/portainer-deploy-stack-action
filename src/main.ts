@@ -49,33 +49,37 @@ async function run(): Promise<void> {
 
     core.setOutput('stack-id', stack.id)
 
-    core.startGroup('Set Permissions')
+    if (cfg.teams && cfg.teams.length > 0) {
+      core.startGroup('Set Permissions')
 
-    const teams = await portainer.getTeams()
+      const teams = await portainer.getTeams()
 
-    // create index of team name -> id
-    const teamsByName = teams.reduce<{[key: string]: number}>((idx, val) => {
-      idx[val.name] = val.id
-      return idx
-    }, {})
+      // create index of team name -> id
+      const teamsByName = teams.reduce<{[key: string]: number}>((idx, val) => {
+        idx[val.name] = val.id
+        return idx
+      }, {})
 
-    // get team ids
-    const teamIds = (cfg.teams || []).map(team => {
-      const teamId = teamsByName[team]
+      // get team ids
+      const teamIds = (cfg.teams || []).map(team => {
+        const teamId = teamsByName[team]
 
-      if (!teamId) {
-        throw new Error(`team ${team} not found`)
-      }
+        if (!teamId) {
+          throw new Error(`team ${team} not found`)
+        }
 
-      return teamId
-    })
+        return teamId
+      })
 
-    // if teams found
-    if (teamIds.length > 0) {
-      core.info('update teams...')
+      core.info(`allow access for teams: ${teamIds.join(',')}`)
+
+      await portainer.setResourceControl({
+        id: stack.resourceControl.id,
+        teams: teamIds
+      })
+
+      core.endGroup()
     }
-
-    core.endGroup()
   } catch (error) {
     core.setFailed(error.message)
   }
