@@ -30,7 +30,8 @@ async function run(): Promise<void> {
         endpointId: cfg.portainer.endpoint,
         stack: cfg.stack.file,
         vars: cfg.stack.vars || {},
-        prune: cfg.stack.updatePrune
+        prune: cfg.stack.prune,
+        pull: cfg.stack.pull
       })
 
       core.endGroup()
@@ -81,7 +82,7 @@ async function run(): Promise<void> {
       core.endGroup()
     }
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed((error as {message: string}).message)
   }
 }
 

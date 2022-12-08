@@ -14,7 +14,8 @@ export interface StackConfig {
   name: string
   file: string
   vars?: {[key: string]: string}
-  updatePrune: boolean
+  prune: boolean
+  pull: boolean
 }
 
 export interface Config {
@@ -39,13 +40,15 @@ function parseStackConfig(): StackConfig {
 
   const filePath = core.getInput('stack-file', {required: true})
   const file = fs.readFileSync(filePath, 'utf-8')
-  const updatePrune = core.getInput('stack-update-prune') === 'true'
+  const prune = core.getInput('stack-prune') === 'true'
+  const pull = core.getInput('stack-pull') === 'true'
 
   return {
     name: core.getInput('stack-name'),
     file,
     vars,
-    updatePrune
+    prune,
+    pull
   }
 }
 

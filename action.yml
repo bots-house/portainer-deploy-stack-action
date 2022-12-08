@@ -33,7 +33,12 @@ inputs:
     description: Prune services there no longer referenced
     required: false
     default: 'false'
-    
+  
+  stack-pull:
+    description: Always attempt to pull a newer version of the image
+    required: false
+    default: 'false'
+
   teams:
     description: |
       Name of teams who can access this stack via Poratiner. 

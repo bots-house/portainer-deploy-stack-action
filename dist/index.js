@@ -44,12 +44,14 @@ function parseStackConfig() {
     const vars = yaml.safeLoad(core.getInput('stack-vars'));
     const filePath = core.getInput('stack-file', { required: true });
     const file = fs.readFileSync(filePath, 'utf-8');
-    const updatePrune = core.getInput('stack-update-prune') === 'true';
+    const prune = core.getInput('stack-prune') === 'true';
+    const pull = core.getInput('stack-pull') === 'true';
     return {
         name: core.getInput('stack-name'),
         file,
         vars,
-        updatePrune
+        prune,
+        pull
     };
 }
 function parse() {
@@ -92,85 +94,75 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__webpack_require__(2186));
 const config = __importStar(__webpack_require__(88));
 const portainer_1 = __webpack_require__(17);
-function run() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const cfg = config.parse();
-            core.debug(`parsed config: ${cfg}`);
-            core.startGroup('Auth');
-            const portainer = new portainer_1.PortainerClient(cfg.portainer.url);
-            yield portainer.login(cfg.portainer.username, cfg.portainer.password);
+async function run() {
+    try {
+        const cfg = config.parse();
+        core.debug(`parsed config: ${cfg}`);
+        core.startGroup('Auth');
+        const portainer = new portainer_1.PortainerClient(cfg.portainer.url);
+        await portainer.login(cfg.portainer.username, cfg.portainer.password);
+        core.endGroup();
+        core.startGroup('Get State');
+        core.info(`get current swarm id of endpoint #${cfg.portainer.endpoint}`);
+        const swarm = await portainer.getSwarm(cfg.portainer.endpoint);
+        core.info(`get stacks of swarm cluster ${swarm.id}`);
+        const stacks = await portainer.getStacks(swarm.id);
+        let stack = stacks.find(item => item.name === cfg.stack.name);
+        core.endGroup();
+        if (stack) {
+            core.startGroup(`Update existing stack (id: ${stack.id})`);
+            await portainer.updateStack({
+                id: stack.id,
+                endpointId: cfg.portainer.endpoint,
+                stack: cfg.stack.file,
+                vars: cfg.stack.vars || {},
+                prune: cfg.stack.prune,
+                pull: cfg.stack.pull
+            });
             core.endGroup();
-            core.startGroup('Get State');
-            core.info(`get current swarm id of endpoint #${cfg.portainer.endpoint}`);
-            const swarm = yield portainer.getSwarm(cfg.portainer.endpoint);
-            core.info(`get stacks of swarm cluster ${swarm.id}`);
-            const stacks = yield portainer.getStacks(swarm.id);
-            let stack = stacks.find(item => item.name === cfg.stack.name);
+        }
+        else {
+            core.startGroup('Create new stack');
+            stack = await portainer.createStack({
+                endpointId: cfg.portainer.endpoint,
+                name: cfg.stack.name,
+                stack: cfg.stack.file,
+                vars: cfg.stack.vars || {}
+            });
             core.endGroup();
-            if (stack) {
-                core.startGroup(`Update existing stack (id: ${stack.id})`);
-                yield portainer.updateStack({
-                    id: stack.id,
-                    endpointId: cfg.portainer.endpoint,
-                    stack: cfg.stack.file,
-                    vars: cfg.stack.vars || {},
-                    prune: cfg.stack.updatePrune
-                });
-                core.endGroup();
-            }
-            else {
-                core.startGroup('Create new stack');
-                stack = yield portainer.createStack({
-                    endpointId: cfg.portainer.endpoint,
-                    name: cfg.stack.name,
-                    stack: cfg.stack.file,
-                    vars: cfg.stack.vars || {}
-                });
-                core.endGroup();
-            }
-            core.setOutput('stack-id', stack.id);
-            if (cfg.teams && cfg.teams.length > 0) {
-                core.startGroup('Set Permissions');
-                const teams = yield portainer.getTeams();
-                // create index of team name -> id
-                const teamsByName = teams.reduce((idx, val) => {
-                    idx[val.name] = val.id;
-                    return idx;
-                }, {});
-                // get team ids
-                const teamIds = (cfg.teams || []).map(team => {
-                    const teamId = teamsByName[team];
-                    if (!teamId) {
-                        throw new Error(`team ${team} not found`);
-                    }
-                    return teamId;
-                });
-                core.info(`allow access for teams: ${teamIds.join(',')}`);
-                yield portainer.setResourceControl({
-                    id: stack.resourceControl.id,
-                    teams: teamIds
-                });
-                core.endGroup();
-            }
         }
-        catch (error) {
-            core.setFailed(error.message);
+        core.setOutput('stack-id', stack.id);
+        if (cfg.teams && cfg.teams.length > 0) {
+            core.startGroup('Set Permissions');
+            const teams = await portainer.getTeams();
+            // create index of team name -> id
+            const teamsByName = teams.reduce((idx, val) => {
+                idx[val.name] = val.id;
+                return idx;
+            }, {});
+            // get team ids
+            const teamIds = (cfg.teams || []).map(team => {
+                const teamId = teamsByName[team];
+                if (!teamId) {
+                    throw new Error(`team ${team} not found`);
+                }
+                return teamId;
+            });
+            core.info(`allow access for teams: ${teamIds.join(',')}`);
+            await portainer.setResourceControl({
+                id: stack.resourceControl.id,
+                teams: teamIds
+            });
+            core.endGroup();
         }
-    });
+    }
+    catch (error) {
+        core.setFailed(error.message);
+    }
 }
 run();
 
@@ -182,15 +174,6 @@ run();
 
 "use strict";
 
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -223,117 +206,104 @@ class PortainerClient {
         });
         this.client.interceptors.response.use(response => response, 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (error) => __awaiter(this, void 0, void 0, function* () {
+        async (error) => {
             return Promise.reject(new PortainerError(error.response.status, error.response.data.message, error.response.data.details));
-        }));
+        });
     }
     get isAuthorized() {
         return Boolean(this.token);
     }
-    getSwarm(endpointId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const { data } = yield this.client.get(`/endpoints/${endpointId}/docker/swarm`);
+    async getSwarm(endpointId) {
+        const { data } = await this.client.get(`/endpoints/${endpointId}/docker/swarm`);
+        return {
+            id: data.ID
+        };
+    }
+    async login(user, pass) {
+        const response = await this.client.post('/auth', {
+            username: user,
+            password: pass
+        });
+        this.token = response.data.jwt;
+    }
+    async getTeams() {
+        const response = await this.client.get('/teams');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return response.data.map((item) => {
             return {
-                id: data.ID
+                id: item.Id,
+                name: item.Name
             };
         });
     }
-    login(user, pass) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const response = yield this.client.post('/auth', {
-                username: user,
-                password: pass
-            });
-            this.token = response.data.jwt;
+    async getStacks(swarmId) {
+        const response = await this.client.get('/stacks', {
+            params: {
+                filters: JSON.stringify({
+                    SwarmId: swarmId
+                })
+            }
         });
-    }
-    getTeams() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const response = yield this.client.get('/teams');
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return response.data.map((item) => {
-                return {
-                    id: item.Id,
-                    name: item.Name
-                };
-            });
-        });
-    }
-    getStacks(swarmId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const response = yield this.client.get('/stacks', {
-                params: {
-                    filters: JSON.stringify({
-                        SwarmId: swarmId
-                    })
-                }
-            });
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return response.data.map((item) => ({
-                id: item.Id,
-                name: item.Name,
-                resourceControl: {
-                    id: item.ResourceControl.Id
-                }
-            }));
-        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return response.data.map((item) => ({
+            id: item.Id,
+            name: item.Name,
+            resourceControl: {
+                id: item.ResourceControl.Id
+            }
+        }));
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setResourceControl(input) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const response = yield this.client.put(`/resource_controls/${input.id}`, {
-                AdministratorsOnly: input.administratorsOnly || false,
-                Public: input.public || false,
-                Teams: input.teams || [],
-                Users: input.users || []
-            });
-            return response.data;
+    async setResourceControl(input) {
+        const response = await this.client.put(`/resource_controls/${input.id}`, {
+            AdministratorsOnly: input.administratorsOnly || false,
+            Public: input.public || false,
+            Teams: input.teams || [],
+            Users: input.users || []
+        });
+        return response.data;
+    }
+    async updateStack(patch) {
+        const env = Object.entries(patch.vars).map(([k, v]) => ({
+            name: k,
+            value: v
+        }));
+        await this.client.put(`/stacks/${patch.id}`, {
+            StackFileContent: patch.stack,
+            Env: env,
+            Prune: patch.prune,
+            PullImage: patch.pull
+        }, {
+            params: {
+                endpointId: patch.endpointId
+            }
         });
     }
-    updateStack(patch) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const env = Object.entries(patch.vars).map(([k, v]) => ({
-                name: k,
-                value: v
-            }));
-            yield this.client.put(`/stacks/${patch.id}`, {
-                StackFileContent: patch.stack,
-                Env: env,
-                Prune: patch.prune
-            }, {
-                params: {
-                    endpointId: patch.endpointId
-                }
-            });
+    async createStack(input) {
+        const swarm = await this.getSwarm(input.endpointId);
+        const env = Object.entries(input.vars).map(([k, v]) => ({
+            name: k,
+            value: v
+        }));
+        const response = await this.client.post('/stacks', {
+            Name: input.name,
+            StackFileContent: input.stack,
+            SwarmID: swarm.id,
+            Env: env
+        }, {
+            params: {
+                endpointId: input.endpointId,
+                method: 'string',
+                type: 1
+            }
         });
-    }
-    createStack(input) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const swarm = yield this.getSwarm(input.endpointId);
-            const env = Object.entries(input.vars).map(([k, v]) => ({
-                name: k,
-                value: v
-            }));
-            const response = yield this.client.post('/stacks', {
-                Name: input.name,
-                StackFileContent: input.stack,
-                SwarmID: swarm.id,
-                Env: env
-            }, {
-                params: {
-                    endpointId: input.endpointId,
-                    method: 'string',
-                    type: 1
-                }
-            });
-            return {
-                id: response.data.Id,
-                name: response.data.Name,
-                resourceControl: {
-                    id: response.data.ResourceControl.Id
-                }
-            };
-        });
+        return {
+            id: response.data.Id,
+            name: response.data.Name,
+            resourceControl: {
+                id: response.data.ResourceControl.Id
+            }
+        };
     }
 }
 exports.PortainerClient = PortainerClient;
@@ -8768,7 +8738,7 @@ exports.customErrorFactory = customErrorFactory;
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse("{\"_from\":\"axios@^0.21.1\",\"_id\":\"axios@0.21.1\",\"_inBundle\":false,\"_integrity\":\"sha512-dKQiRHxGD9PPRIUNIWvZhPTPpl1rf/OxTYKsqKUDjBwYylTvV7SjSHJb9ratfyzM6wCdLCOYLzs73qpg5c4iGA==\",\"_location\":\"/axios\",\"_phantomChildren\":{},\"_requested\":{\"type\":\"range\",\"registry\":true,\"raw\":\"axios@^0.21.1\",\"name\":\"axios\",\"escapedName\":\"axios\",\"rawSpec\":\"^0.21.1\",\"saveSpec\":null,\"fetchSpec\":\"^0.21.1\"},\"_requiredBy\":[\"/\"],\"_resolved\":\"https://registry.npmjs.org/axios/-/axios-0.21.1.tgz\",\"_shasum\":\"22563481962f4d6bde9a76d516ef0e5d3c09b2b8\",\"_spec\":\"axios@^0.21.1\",\"_where\":\"/Users/sasha/Dev/portainer-deploy-stack-action\",\"author\":{\"name\":\"Matt Zabriskie\"},\"browser\":{\"./lib/adapters/http.js\":\"./lib/adapters/xhr.js\"},\"bugs\":{\"url\":\"https://github.com/axios/axios/issues\"},\"bundleDependencies\":false,\"bundlesize\":[{\"path\":\"./dist/axios.min.js\",\"threshold\":\"5kB\"}],\"dependencies\":{\"follow-redirects\":\"^1.10.0\"},\"deprecated\":false,\"description\":\"Promise based HTTP client for the browser and node.js\",\"devDependencies\":{\"bundlesize\":\"^0.17.0\",\"coveralls\":\"^3.0.0\",\"es6-promise\":\"^4.2.4\",\"grunt\":\"^1.0.2\",\"grunt-banner\":\"^0.6.0\",\"grunt-cli\":\"^1.2.0\",\"grunt-contrib-clean\":\"^1.1.0\",\"grunt-contrib-watch\":\"^1.0.0\",\"grunt-eslint\":\"^20.1.0\",\"grunt-karma\":\"^2.0.0\",\"grunt-mocha-test\":\"^0.13.3\",\"grunt-ts\":\"^6.0.0-beta.19\",\"grunt-webpack\":\"^1.0.18\",\"istanbul-instrumenter-loader\":\"^1.0.0\",\"jasmine-core\":\"^2.4.1\",\"karma\":\"^1.3.0\",\"karma-chrome-launcher\":\"^2.2.0\",\"karma-coverage\":\"^1.1.1\",\"karma-firefox-launcher\":\"^1.1.0\",\"karma-jasmine\":\"^1.1.1\",\"karma-jasmine-ajax\":\"^0.1.13\",\"karma-opera-launcher\":\"^1.0.0\",\"karma-safari-launcher\":\"^1.0.0\",\"karma-sauce-launcher\":\"^1.2.0\",\"karma-sinon\":\"^1.0.5\",\"karma-sourcemap-loader\":\"^0.3.7\",\"karma-webpack\":\"^1.7.0\",\"load-grunt-tasks\":\"^3.5.2\",\"minimist\":\"^1.2.0\",\"mocha\":\"^5.2.0\",\"sinon\":\"^4.5.0\",\"typescript\":\"^2.8.1\",\"url-search-params\":\"^0.10.0\",\"webpack\":\"^1.13.1\",\"webpack-dev-server\":\"^1.14.1\"},\"homepage\":\"https://github.com/axios/axios\",\"jsdelivr\":\"dist/axios.min.js\",\"keywords\":[\"xhr\",\"http\",\"ajax\",\"promise\",\"node\"],\"license\":\"MIT\",\"main\":\"index.js\",\"name\":\"axios\",\"repository\":{\"type\":\"git\",\"url\":\"git+https://github.com/axios/axios.git\"},\"scripts\":{\"build\":\"NODE_ENV=production grunt build\",\"coveralls\":\"cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js\",\"examples\":\"node ./examples/server.js\",\"fix\":\"eslint --fix lib/**/*.js\",\"postversion\":\"git push && git push --tags\",\"preversion\":\"npm test\",\"start\":\"node ./sandbox/server.js\",\"test\":\"grunt test && bundlesize\",\"version\":\"npm run build && grunt version && git add -A dist && git add CHANGELOG.md bower.json package.json\"},\"typings\":\"./index.d.ts\",\"unpkg\":\"dist/axios.min.js\",\"version\":\"0.21.1\"}");
+module.exports = JSON.parse("{\"_args\":[[\"axios@0.21.1\",\"/Users/sasha/src/portainer-deploy-stack-action\"]],\"_from\":\"axios@0.21.1\",\"_id\":\"axios@0.21.1\",\"_inBundle\":false,\"_integrity\":\"sha512-dKQiRHxGD9PPRIUNIWvZhPTPpl1rf/OxTYKsqKUDjBwYylTvV7SjSHJb9ratfyzM6wCdLCOYLzs73qpg5c4iGA==\",\"_location\":\"/axios\",\"_phantomChildren\":{},\"_requested\":{\"type\":\"version\",\"registry\":true,\"raw\":\"axios@0.21.1\",\"name\":\"axios\",\"escapedName\":\"axios\",\"rawSpec\":\"0.21.1\",\"saveSpec\":null,\"fetchSpec\":\"0.21.1\"},\"_requiredBy\":[\"/\"],\"_resolved\":\"https://registry.npmjs.org/axios/-/axios-0.21.1.tgz\",\"_spec\":\"0.21.1\",\"_where\":\"/Users/sasha/src/portainer-deploy-stack-action\",\"author\":{\"name\":\"Matt Zabriskie\"},\"browser\":{\"./lib/adapters/http.js\":\"./lib/adapters/xhr.js\"},\"bugs\":{\"url\":\"https://github.com/axios/axios/issues\"},\"bundlesize\":[{\"path\":\"./dist/axios.min.js\",\"threshold\":\"5kB\"}],\"dependencies\":{\"follow-redirects\":\"^1.10.0\"},\"description\":\"Promise based HTTP client for the browser and node.js\",\"devDependencies\":{\"bundlesize\":\"^0.17.0\",\"coveralls\":\"^3.0.0\",\"es6-promise\":\"^4.2.4\",\"grunt\":\"^1.0.2\",\"grunt-banner\":\"^0.6.0\",\"grunt-cli\":\"^1.2.0\",\"grunt-contrib-clean\":\"^1.1.0\",\"grunt-contrib-watch\":\"^1.0.0\",\"grunt-eslint\":\"^20.1.0\",\"grunt-karma\":\"^2.0.0\",\"grunt-mocha-test\":\"^0.13.3\",\"grunt-ts\":\"^6.0.0-beta.19\",\"grunt-webpack\":\"^1.0.18\",\"istanbul-instrumenter-loader\":\"^1.0.0\",\"jasmine-core\":\"^2.4.1\",\"karma\":\"^1.3.0\",\"karma-chrome-launcher\":\"^2.2.0\",\"karma-coverage\":\"^1.1.1\",\"karma-firefox-launcher\":\"^1.1.0\",\"karma-jasmine\":\"^1.1.1\",\"karma-jasmine-ajax\":\"^0.1.13\",\"karma-opera-launcher\":\"^1.0.0\",\"karma-safari-launcher\":\"^1.0.0\",\"karma-sauce-launcher\":\"^1.2.0\",\"karma-sinon\":\"^1.0.5\",\"karma-sourcemap-loader\":\"^0.3.7\",\"karma-webpack\":\"^1.7.0\",\"load-grunt-tasks\":\"^3.5.2\",\"minimist\":\"^1.2.0\",\"mocha\":\"^5.2.0\",\"sinon\":\"^4.5.0\",\"typescript\":\"^2.8.1\",\"url-search-params\":\"^0.10.0\",\"webpack\":\"^1.13.1\",\"webpack-dev-server\":\"^1.14.1\"},\"homepage\":\"https://github.com/axios/axios\",\"jsdelivr\":\"dist/axios.min.js\",\"keywords\":[\"xhr\",\"http\",\"ajax\",\"promise\",\"node\"],\"license\":\"MIT\",\"main\":\"index.js\",\"name\":\"axios\",\"repository\":{\"type\":\"git\",\"url\":\"git+https://github.com/axios/axios.git\"},\"scripts\":{\"build\":\"NODE_ENV=production grunt build\",\"coveralls\":\"cat coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js\",\"examples\":\"node ./examples/server.js\",\"fix\":\"eslint --fix lib/**/*.js\",\"postversion\":\"git push && git push --tags\",\"preversion\":\"npm test\",\"start\":\"node ./sandbox/server.js\",\"test\":\"grunt test && bundlesize\",\"version\":\"npm run build && grunt version && git add -A dist && git add CHANGELOG.md bower.json package.json\"},\"typings\":\"./index.d.ts\",\"unpkg\":\"dist/axios.min.js\",\"version\":\"0.21.1\"}");
 
 /***/ }),
 
