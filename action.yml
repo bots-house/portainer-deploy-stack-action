@@ -1,5 +1,8 @@
 name: 'Portainer Deploy Stack'
 description: 'Deploy provided stack via Portainer'
+branding:
+  icon: 'arrow-up-circle'
+  color: 'blue'
 inputs:
   portainer-username:
     description: Poratainer user name
