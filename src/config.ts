@@ -15,6 +15,7 @@ export interface StackConfig {
   file: string
   vars?: {[key: string]: string}
   updatePrune: boolean
+  pullImage: boolean
 }
 
 export interface Config {
@@ -40,12 +41,14 @@ function parseStackConfig(): StackConfig {
   const filePath = core.getInput('stack-file', {required: true})
   const file = fs.readFileSync(filePath, 'utf-8')
   const updatePrune = core.getInput('stack-update-prune') === 'true'
+  const pullImage = core.getInput('stack-pull-image') === 'true'
 
   return {
     name: core.getInput('stack-name'),
     file,
     vars,
-    updatePrune
+    updatePrune,
+    pullImage
   }
 }
 

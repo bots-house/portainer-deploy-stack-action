@@ -5,7 +5,7 @@ import {PortainerClient} from './portainer'
 async function run(): Promise<void> {
   try {
     const cfg = config.parse()
-    core.debug(`parsed config: ${cfg}`)
+    core.debug(`parsed config: ${JSON.stringify(cfg)}`)
 
     core.startGroup('Auth')
     const portainer = new PortainerClient(cfg.portainer.url)
@@ -30,7 +30,8 @@ async function run(): Promise<void> {
         endpointId: cfg.portainer.endpoint,
         stack: cfg.stack.file,
         vars: cfg.stack.vars || {},
-        prune: cfg.stack.updatePrune
+        prune: cfg.stack.updatePrune,
+        pull: cfg.stack.pullImage
       })
 
       core.endGroup()

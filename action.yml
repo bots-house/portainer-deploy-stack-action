@@ -36,6 +36,11 @@ inputs:
     description: Prune services there no longer referenced
     required: false
     default: 'false'
+
+  stack-pull-image:
+    description: Pull newest version of images
+    required: false
+    default: 'true'
     
   teams:
     description: |
