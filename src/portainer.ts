@@ -32,6 +32,7 @@ export interface PatchStack {
   stack: string
   vars: {[key: string]: string}
   prune: boolean
+  pull: boolean
 }
 
 export interface InputResourceControl {
@@ -172,7 +173,8 @@ export class PortainerClient {
       {
         StackFileContent: patch.stack,
         Env: env,
-        Prune: patch.prune
+        Prune: patch.prune,
+        PullImage: patch.pull
       },
       {
         params: {

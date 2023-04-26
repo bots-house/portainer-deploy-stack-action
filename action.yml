@@ -5,7 +5,7 @@ branding:
   color: 'blue'
 inputs:
   portainer-username:
-    description: Poratainer user name
+    description: Portainer user name
     required: true
 
   portainer-password:
@@ -36,6 +36,11 @@ inputs:
     description: Prune services there no longer referenced
     required: false
     default: 'false'
+
+  stack-pull-image:
+    description: Pull newest version of images
+    required: false
+    default: 'true'
     
   teams:
     description: |
@@ -48,5 +53,5 @@ outputs:
     description: Created docker swarm stack ID
 
 runs:
-  using: 'node12'
+  using: 'node16'
   main: 'dist/index.js'
