@@ -193,18 +193,17 @@ export class PortainerClient {
     }))
 
     const response = await this.client.post(
-      '/stacks',
+      '/stacks/create/swarm/string',
       {
         Name: input.name,
-        StackFileContent: input.stack,
         SwarmID: swarm.id,
-        Env: env
+        StackFileContent: input.stack,
+        Env: env,
+        fromAppTemplate: false
       },
       {
         params: {
-          endpointId: input.endpointId,
-          method: 'string',
-          type: 1
+          endpointId: input.endpointId
         }
       }
     )

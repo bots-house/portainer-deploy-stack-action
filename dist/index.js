@@ -300,6 +300,7 @@ class PortainerClient {
                 value: v
             }));
             yield this.client.put(`/stacks/${patch.id}`, {
+                id: patch.id,
                 StackFileContent: patch.stack,
                 Env: env,
                 Prune: patch.prune,
@@ -318,16 +319,16 @@ class PortainerClient {
                 name: k,
                 value: v
             }));
-            const response = yield this.client.post('/stacks', {
+            const response = yield this.client.post('/stacks/swarm/string', {
+                method: 'string',
+                type: 'swarm',
                 Name: input.name,
-                StackFileContent: input.stack,
                 SwarmID: swarm.id,
+                StackFileContent: input.stack,
                 Env: env
             }, {
                 params: {
-                    endpointId: input.endpointId,
-                    method: 'string',
-                    type: 1
+                    endpointId: input.endpointId
                 }
             });
             return {
