@@ -121,6 +121,7 @@ function run() {
             const swarm = yield portainer.getSwarm(cfg.portainer.endpoint);
             core.info(`get stacks of swarm cluster ${swarm.id}`);
             const stacks = yield portainer.getStacks(swarm.id);
+            core.debug(`found stacks ${JSON.stringify(stacks)}`);
             let stack = stacks.find(item => item.name === cfg.stack.name);
             core.endGroup();
             if (stack) {
@@ -267,7 +268,7 @@ class PortainerClient {
             const response = yield this.client.get('/stacks', {
                 params: {
                     filters: JSON.stringify({
-                        SwarmId: swarmId
+                        SwarmID: swarmId
                     })
                 }
             });
@@ -300,7 +301,6 @@ class PortainerClient {
                 value: v
             }));
             yield this.client.put(`/stacks/${patch.id}`, {
-                id: patch.id,
                 StackFileContent: patch.stack,
                 Env: env,
                 Prune: patch.prune,
@@ -319,13 +319,12 @@ class PortainerClient {
                 name: k,
                 value: v
             }));
-            const response = yield this.client.post('/stacks/swarm/string', {
-                method: 'string',
-                type: 'swarm',
+            const response = yield this.client.post('/stacks/create/swarm/string', {
                 Name: input.name,
                 SwarmID: swarm.id,
                 StackFileContent: input.stack,
-                Env: env
+                Env: env,
+                fromAppTemplate: false
             }, {
                 params: {
                     endpointId: input.endpointId

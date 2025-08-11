@@ -135,7 +135,7 @@ export class PortainerClient {
     const response = await this.client.get('/stacks', {
       params: {
         filters: JSON.stringify({
-          SwarmId: swarmId
+          SwarmID: swarmId
         })
       }
     })

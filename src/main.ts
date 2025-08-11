@@ -19,6 +19,8 @@ async function run(): Promise<void> {
     core.info(`get stacks of swarm cluster ${swarm.id}`)
     const stacks = await portainer.getStacks(swarm.id)
 
+    core.debug(`found stacks ${JSON.stringify(stacks)}`)
+
     let stack = stacks.find(item => item.name === cfg.stack.name)
     core.endGroup()
 
